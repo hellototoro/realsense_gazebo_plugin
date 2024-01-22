@@ -5,14 +5,17 @@ project(realsense_gazebo_plugin)
 if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 14)
 endif()
+
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  # we dont use add_compile_options with pedantic in message packages
-  # because the Python C extensions dont comply with it
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wpedantic -Wno-inconsistent-missing-override")
+  add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-set(FastRTPS_INCLUDE_DIR /opt/ros/foxy/include) 
-set(FastRTPS_LIBRARY_RELEASE /opt/ros/foxy/lib/libfastrtps.so)
+add_library(
+  ${PROJECT_NAME} SHARED
+  src/RealSensePlugin.cpp
+  src/gazebo_ros_realsense.cpp
+)
+
 # Load catkin and all dependencies required for this package
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
@@ -26,45 +29,33 @@ find_package(gazebo REQUIRED)
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${GAZEBO_CXX_FLAGS}")
 
 set( dependencies
-    rclcpp
-    gazebo_ros
-    image_transport
-    camera_info_manager
-    sensor_msgs
+  rclcpp
+  gazebo_ros
+  image_transport
+  camera_info_manager
+  sensor_msgs
 )
 
-include_directories(
-    SYSTEM
-    include
-    ${GAZEBO_INCLUDE_DIRS}
+target_include_directories(${PROJECT_NAME} PRIVATE
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  # $<INSTALL_INTERFACE:include>
 )
 
-link_directories(${GAZEBO_LIBRARY_DIRS})
+ament_target_dependencies(${PROJECT_NAME} PUBLIC ${dependencies})
 
-add_library(
-    ${PROJECT_NAME} SHARED
-    src/RealSensePlugin.cpp
-    src/gazebo_ros_realsense.cpp
-    )
+install(
+  DIRECTORY include/
+  DESTINATION include/
+)
 
-ament_target_dependencies(${PROJECT_NAME} ${dependencies})
-target_link_libraries(${PROJECT_NAME} ${GAZEBO_LIBRARIES})
-
-install(TARGETS ${PROJECT_NAME} 
+install(
+  TARGETS ${PROJECT_NAME}
+  EXPORT export_${PROJECT_NAME}
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
 )
 
-install(DIRECTORY include/
-  DESTINATION include/
-)
-
-if(BUILD_TESTING)
-  find_package(ament_lint_auto REQUIRED)
-  ament_lint_auto_find_test_dependencies()
-endif()
-
-ament_export_include_directories(include)
-ament_export_libraries(${PROJECT_NAME})
+ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
+# ament_export_dependencies(some_dependency)
 ament_package()
